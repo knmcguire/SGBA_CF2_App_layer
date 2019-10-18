@@ -11,13 +11,13 @@
 //#include <sys/time.h>
 //#include "usec_time.h"
 
-#ifndef GB_ONBOARD
+/*#ifndef GB_ONBOARD
 #include <time.h>
 #include <sys/time.h>
 #include <stdio.h>
-#else
+#else*/
 #include "usec_time.h"
-#endif
+//#endif
 
 // variables
 static float ref_distance_from_wall = 0;
@@ -26,14 +26,14 @@ static float max_rate = 0.5;
 static float direction = 1;
 static float first_run = false;
 
-#ifndef GB_ONBOARD
+/*#ifndef GB_ONBOARD
 struct timeval state_start_time;
 struct timeval now_time;
-#else
+#else*/
 float state_start_time;
-#endif
+//#endif
 
-#ifndef GB_ONBOARD
+/*#ifndef GB_ONBOARD
 
 static int diff_ms(struct timeval t1, struct timeval t2)
 {
@@ -46,7 +46,7 @@ float get_sec(struct timeval t1)
   return (float)((((t1.tv_sec) * 1000000) +
                   (t1.tv_usec)) / 1000) / 1000.0f;
 }
-#endif
+#endif*/
 
 
 void testRange(float front_range, float right_range, float left_range)
@@ -229,12 +229,12 @@ static void commandTurnAndAdjust(float *vel_y, float *vel_w, float rate, float r
 
 static int transition(int new_state)
 {
-#ifndef GB_ONBOARD
+/*#ifndef GB_ONBOARD
   gettimeofday(&state_start_time, NULL);
-#else
+#else*/
   float t =  usecTimestamp() / 1e6;
   state_start_time = t;
-#endif
+//#endif
 
   return new_state;
 
@@ -259,11 +259,11 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
   //static bool found_corner = 0;
   // static float wanted_distance_from_corner= 0.3;
 
-#ifndef GB_ONBOARD
+/*#ifndef GB_ONBOARD
   gettimeofday(&now_time, NULL);
-#else
+#else*/
   float now = usecTimestamp() / 1e6;
-#endif
+//#endif
 
   if (first_run) {
     previous_heading = current_heading;
@@ -356,9 +356,9 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
     // printf("STATE doesn't exist! \n");
   }
 
-#ifndef GB_ONBOARD
+/*#ifndef GB_ONBOARD
 //printf("state_WF %d\n",state);
-#endif
+#endif*/
 
 
   /***********************************************************
@@ -386,12 +386,12 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
 
 
     // hover first second to stabilize (tv_usec i microseconds)
-#ifndef GB_ONBOARD
+/*#ifndef GB_ONBOARD
     if (diff_ms(now_time, state_start_time) < 1000)
 
-#else
+#else*/
     if (now - state_start_time < 1.0f)
-#endif
+//#endif
 
       commandHover(&temp_vel_x, &temp_vel_y, &temp_vel_w);
     else { // then turn again
@@ -469,11 +469,11 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
   *vel_w = temp_vel_w;
 
 
-#ifndef GB_ONBOARD
+/*#ifndef GB_ONBOARD
 
   //printf("state_wf %d\n",state);
 
-#endif
+#endif*/
   return state;
 
 }

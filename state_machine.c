@@ -32,12 +32,7 @@
 
 #include "median_filter.h"
 
-
-
-//#define GRADIENT_BUG_NAME "GRADIENTBUG"
-//#define GRADIENT_TASK_PRI 2
-#define GRADIENT_BUG_COMMANDER_PRI 3
-static bool isInit = false;
+#define STATE_MACHINE_COMMANDER_PRI 3
 
 static bool keep_flying = false;
 
@@ -45,14 +40,10 @@ static bool keep_flying = false;
 float height;
 
 static bool taken_off = false;
-static float nominal_height = 0.8;
+static float nominal_height = 0.4;
 
-//1= wall_following, 2=lobe navigator, 3 = wallfollowing with avoid, 4 = com_bug_loop_controller
-// 5 = com_bug_loop_avoid_controller 6=lobe_bug_loop_controller 7=gradient_bug_loop_controller
+//1= wall_following,
 #define METHOD 1
-
-
-
 
 
 static void take_off(setpoint_t *sp, float velocity)
@@ -118,7 +109,7 @@ static void shut_off_engines(setpoint_t *sp)
 
 setpoint_t setpoint_BG;
 float vel_x_cmd, vel_y_cmd, vel_w_cmd;
-float current_heading;
+float heading_rad;
 float right_range;
 float front_range;
 float left_range;
@@ -174,8 +165,12 @@ void appMain(void *param)
     vTaskDelay(10);
 
     // get current height and heading
-    height = estimatorKalmanGetElevation();
-    current_heading = getHeading() * (float)M_PI / 180.0f;
+    int varid = logGetVarId("kalman", "stateZ");
+    height = logGetFloat(varid);
+
+    varid = logGetVarId("stabilizer", "yaw");
+    float heading_deg = logGetFloat(varid);
+    heading_rad = heading_deg * (float)M_PI / 180.0f;
 
     // Select which laser range sensor readings to use
     //if (multiranger_isinit) {
@@ -249,7 +244,7 @@ void appMain(void *param)
 
 #if METHOD == 1 //WALL_FOLLOWING
         // wall following state machine
-        state = wall_follower(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, front_range, left_range, current_heading, -1);
+        state = wall_follower(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, front_range, left_range, heading_rad, -1);
 
 #endif
 
@@ -257,7 +252,7 @@ void appMain(void *param)
         float vel_w_cmd_convert = vel_w_cmd * 180.0f / (float)M_PI;
 
         // Convert relative commands to world commands (not necessary anymore)
-        /*float psi = current_heading;
+        /*float psi = heading_rad;
         float vel_x_cmd_convert =  cosf(-psi) * vel_x_cmd + sinf(-psi) * vel_y_cmd;
         float vel_y_cmd_convert = -sinf(-psi) * vel_x_cmd + cosf(-psi) * vel_y_cmd;*/
         //float vel_y_cmd_convert = -1 * vel_y_cmd;
@@ -309,23 +304,14 @@ void appMain(void *param)
 
     }
 
-    commanderSetSetpoint(&setpoint_BG, GRADIENT_BUG_COMMANDER_PRI);
+    commanderSetSetpoint(&setpoint_BG, STATE_MACHINE_COMMANDER_PRI);
   }
 }
 
-PARAM_GROUP_START(gbug)
+PARAM_GROUP_START(statemach)
 PARAM_ADD(PARAM_UINT8, keep_flying, &keep_flying)
-PARAM_GROUP_STOP(gbug)
+PARAM_GROUP_STOP(statemach)
 
-
-
-
-LOG_GROUP_START(gradientbug)
+LOG_GROUP_START(statemach)
 LOG_ADD(LOG_UINT8, state, &state)
-LOG_ADD(LOG_FLOAT, rssi_angle, &rssi_angle)
-//LOG_ADD(LOG_FLOAT, up_range, &up_range)
-LOG_GROUP_STOP(gradientbug)
-
-
-
-
+LOG_GROUP_STOP(statemach)
