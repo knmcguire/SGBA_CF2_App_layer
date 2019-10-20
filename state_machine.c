@@ -27,11 +27,8 @@
 #include "wallfollowing_multiranger_onboard.h"
 
 #include "range.h"
-
 #include "radiolink.h"
-
 #include "median_filter.h"
-
 #define STATE_MACHINE_COMMANDER_PRI 3
 
 static bool keep_flying = false;
@@ -120,6 +117,7 @@ int state;
 int state_wf;
 float up_range_filtered;
 uint8_t send_to_number = 0;
+int varid;
 
 //#define REVERSE
 
@@ -162,24 +160,31 @@ void appMain(void *param)
   vTaskDelay(M2T(3000));
   while (1) {
 	// some delay before the whole thing starts
-    vTaskDelay(10);
+    vTaskDelay(1000);
+
+
+
+    //checking init of multiranger and flowdeck
+    varid = paramGetVarId("deck", "bcMultiranger");
+    uint8_t multiranger_isinit=paramGetInt(varid);
+    varid = paramGetVarId("deck", "bcFlow2");
+    uint8_t flowdeck_isinit=paramGetUint(varid);
 
     // get current height and heading
-    int varid = logGetVarId("kalman", "stateZ");
+    varid = logGetVarId("kalman", "stateZ");
     height = logGetFloat(varid);
-
     varid = logGetVarId("stabilizer", "yaw");
     float heading_deg = logGetFloat(varid);
     heading_rad = heading_deg * (float)M_PI / 180.0f;
 
     // Select which laser range sensor readings to use
-    //if (multiranger_isinit) {
+    if (multiranger_isinit) {
       front_range = (float)rangeGet(rangeFront) / 1000.0f;
       right_range = (float)rangeGet(rangeRight) / 1000.0f;
       left_range = (float)rangeGet(rangeLeft) / 1000.0f;
       back_range = (float)rangeGet(rangeBack) / 1000.0f;
       up_range = (float)rangeGet(rangeUp) / 1000.0f;
-    //}
+    }
 
 
     // Get position estimate of kalman filter
@@ -218,9 +223,9 @@ void appMain(void *param)
             }
         }*/
 
-    //if (flowdeck_isinit && multiranger_isinit ) {
+    if (flowdeck_isinit && multiranger_isinit ) {
       correctly_initialized = true;
-    //}
+    }
     // Don't fly if multiranger/updownlaser is not connected or the uprange is activated
     //TODO: add flowdeck init here
 
@@ -310,6 +315,7 @@ void appMain(void *param)
 
 PARAM_GROUP_START(statemach)
 PARAM_ADD(PARAM_UINT8, keep_flying, &keep_flying)
+PARAM_ADD(PARAM_UINT8 | PARAM_RONLY, corinit, &correctly_initialized)
 PARAM_GROUP_STOP(statemach)
 
 LOG_GROUP_START(statemach)

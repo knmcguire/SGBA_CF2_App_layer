@@ -2,3 +2,4 @@
 .project
 bin/*
 cf2.*
+version.c
