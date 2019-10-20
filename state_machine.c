@@ -25,10 +25,15 @@
 #include "stabilizer.h"
 
 #include "wallfollowing_multiranger_onboard.h"
+#include "wallfollowing_with_avoid.h"
+
 
 #include "range.h"
 #include "radiolink.h"
 #include "median_filter.h"
+#include "configblock.h"
+
+
 #define STATE_MACHINE_COMMANDER_PRI 3
 
 static bool keep_flying = false;
@@ -40,7 +45,12 @@ static bool taken_off = false;
 static float nominal_height = 0.4;
 
 //1= wall_following,
-#define METHOD 1
+#define METHOD 2
+
+
+void p2pcallbackHandler(P2PPacket *p);
+static uint8_t id_broadcast=66;
+static uint8_t rssi_inter;
 
 
 static void take_off(setpoint_t *sp, float velocity)
@@ -155,13 +165,21 @@ void appMain(void *param)
 {
   struct MedianFilterFloat medFilt;
   init_median_filter_f(&medFilt, 5);
+  p2pRegisterCB(p2pcallbackHandler);
+  uint64_t address = configblockGetRadioAddress();
+  uint8_t my_id =(uint8_t)((address) & 0x00000000ff);
+  P2PPacket p_reply;
+  p_reply.port=0x00;
+  p_reply.data[0]=my_id;
+  p_reply.size=1;
 
   systemWaitStart();
   vTaskDelay(M2T(3000));
   while (1) {
 	// some delay before the whole thing starts
-    vTaskDelay(1000);
+    vTaskDelay(10);
 
+    radiolinkSendP2PPacketBroadcast(&p_reply);
 
 
     //checking init of multiranger and flowdeck
@@ -250,7 +268,10 @@ void appMain(void *param)
 #if METHOD == 1 //WALL_FOLLOWING
         // wall following state machine
         state = wall_follower(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, front_range, left_range, heading_rad, -1);
-
+#endif
+#if METHOD ==2 //WALL_FOLLOWER_AND_AVOID
+        state = wall_follower_and_avoid_controller(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, front_range, left_range, right_range,
+                heading_rad, rssi_inter);
 #endif
 
         // convert yaw rate commands to degrees
@@ -303,14 +324,19 @@ void appMain(void *param)
          */
         shut_off_engines(&setpoint_BG);
         on_the_ground = true;
-
-
       }
-
     }
-
     commanderSetSetpoint(&setpoint_BG, STATE_MACHINE_COMMANDER_PRI);
   }
+}
+
+//ToDo put rssi in array
+void p2pcallbackHandler(P2PPacket *p)
+{
+    id_broadcast = p->data[0];
+    rssi_inter = p->rssi;
+
+
 }
 
 PARAM_GROUP_START(statemach)
