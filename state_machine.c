@@ -26,6 +26,7 @@
 
 #include "wallfollowing_multiranger_onboard.h"
 #include "wallfollowing_with_avoid.h"
+#include "SGBA.h"
 
 
 #include "range.h"
@@ -45,13 +46,14 @@ static bool taken_off = false;
 static float nominal_height = 0.4;
 
 //1= wall_following,
-#define METHOD 2
+#define METHOD 3
 
 
 void p2pcallbackHandler(P2PPacket *p);
-static uint8_t id_broadcast=66;
 static uint8_t rssi_inter;
-
+float rssi_angle_inter_ext;
+uint8_t rssi_beacon;
+uint8_t id_inter_ext;
 
 static void take_off(setpoint_t *sp, float velocity)
 {
@@ -129,6 +131,9 @@ float up_range_filtered;
 uint8_t send_to_number = 0;
 int varid;
 
+
+
+
 //#define REVERSE
 
 #ifdef REVERSE
@@ -171,13 +176,15 @@ void appMain(void *param)
   P2PPacket p_reply;
   p_reply.port=0x00;
   p_reply.data[0]=my_id;
-  p_reply.size=1;
+  memcpy(&p_reply.data[1], &rssi_angle, sizeof(float));
+  p_reply.size=5;
 
   systemWaitStart();
   vTaskDelay(M2T(3000));
   while (1) {
 	// some delay before the whole thing starts
     vTaskDelay(10);
+
 
     radiolinkSendP2PPacketBroadcast(&p_reply);
 
@@ -194,6 +201,11 @@ void appMain(void *param)
     varid = logGetVarId("stabilizer", "yaw");
     float heading_deg = logGetFloat(varid);
     heading_rad = heading_deg * (float)M_PI / 180.0f;
+
+    // Get RSSI of beacon
+    varid = logGetVarId("radio", "rssi");
+    rssi_beacon = logGetFloat(varid);
+
 
     // Select which laser range sensor readings to use
     if (multiranger_isinit) {
@@ -273,6 +285,20 @@ void appMain(void *param)
         state = wall_follower_and_avoid_controller(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, front_range, left_range, right_range,
                 heading_rad, rssi_inter);
 #endif
+#if METHOD==3 // SwWARM GRADIENT BUG ALGORITHM
+        bool priority = false;
+        if (id_inter_ext > my_id) {
+          priority = true;
+        } else {
+          priority = false;
+
+        }
+        //TODO make outbound depended on battery.
+        bool outbound = true;
+        state = SGBA_controller(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, &rssi_angle, &state_wf, front_range,
+                                             left_range, right_range, back_range, heading_rad,
+                                             (float)pos.x, (float)pos.y, rssi_beacon, rssi_inter, rssi_angle_inter_ext, priority, outbound);
+#endif
 
         // convert yaw rate commands to degrees
         float vel_w_cmd_convert = vel_w_cmd * 180.0f / (float)M_PI;
@@ -296,6 +322,24 @@ void appMain(void *param)
 
 #if METHOD==1
           wall_follower_init(0.4, 0.5);
+#endif
+#if METHOD==2
+          init_wall_follower_and_avoid_controller(0.4, 0.5, -1);
+#endif
+#if METHOD==3
+          if (my_id == 4 || my_id == 8) {
+              init_SGBA_controller(0.4, 0.5, -0.8);
+          } else if (my_id == 2 || my_id == 6) {
+              init_SGBA_controller(0.4, 0.5, 0.8);
+          } else if (my_id == 3 || my_id == 7) {
+              init_SGBA_controller(0.4, 0.5, -2.4);
+          } else if (my_id == 5 || my_id == 9) {
+              init_SGBA_controller(0.4, 0.5, 2.4);
+          } else {
+              init_SGBA_controller(0.4, 0.5, 0.8);
+          }
+
+
 #endif
 
         }
@@ -333,10 +377,9 @@ void appMain(void *param)
 //ToDo put rssi in array
 void p2pcallbackHandler(P2PPacket *p)
 {
-    id_broadcast = p->data[0];
+    id_inter_ext = p->data[0];
     rssi_inter = p->rssi;
-
-
+    memcpy(&rssi_angle_inter_ext, &p->data[1], sizeof(float));
 }
 
 PARAM_GROUP_START(statemach)
