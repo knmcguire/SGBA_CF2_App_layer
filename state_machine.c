@@ -44,10 +44,10 @@ static bool keep_flying = false;
 float height;
 
 static bool taken_off = false;
-static float nominal_height = 0.4;
+static float nominal_height = 0.3;
 
 //1= wall_following,
-#define METHOD 3
+#define METHOD 2
 
 
 void p2pcallbackHandler(P2PPacket *p);
@@ -82,7 +82,7 @@ bool correctly_initialized;
 static uint8_t rssi_array_other_drones[9] = {150, 150, 150, 150, 150, 150, 150, 150, 150};
 static uint64_t time_array_other_drones[9] = {0};
 static float rssi_angle_array_other_drones[9] = {500.0f};
-
+uint8_t id_inter_closest=100;
 
 #define MANUAL_STARTUP_TIMEOUT  M2T(3000)
 
@@ -148,7 +148,6 @@ static void shut_off_engines(setpoint_t *sp)
 
 }
 
-
 static int32_t find_minimum(uint8_t a[], int32_t n)
 {
   int32_t c, min, index;
@@ -166,7 +165,6 @@ static int32_t find_minimum(uint8_t a[], int32_t n)
   return index;
 }
 
-
 /*static double wraptopi(double number)
 {
 
@@ -182,6 +180,10 @@ void appMain(void *param)
 {
   struct MedianFilterFloat medFilt;
   init_median_filter_f(&medFilt, 5);
+  struct MedianFilterFloat medFilt_2;
+  init_median_filter_f(&medFilt_2, 5);
+  struct MedianFilterFloat medFilt_3;
+  init_median_filter_f(&medFilt_3, 5);
   p2pRegisterCB(p2pcallbackHandler);
   uint64_t address = configblockGetRadioAddress();
   uint8_t my_id =(uint8_t)((address) & 0x00000000ff);
@@ -190,6 +192,7 @@ void appMain(void *param)
   p_reply.data[0]=my_id;
   memcpy(&p_reply.data[1], &rssi_angle, sizeof(float));
   p_reply.size=5;
+
   uint64_t radioSendBroadcastTime=0;
 
   systemWaitStart();
@@ -198,6 +201,33 @@ void appMain(void *param)
 	// some delay before the whole thing starts
     vTaskDelay(10);
 
+    // For every 1 second, reset the RSSI value to high if it hasn't been received for a while
+    for (uint8_t it = 0; it < 9; it++) if (usecTimestamp() >= time_array_other_drones[it] + 1000*1000) {
+        time_array_other_drones[it] = usecTimestamp() + 1000*1000+1;
+        rssi_array_other_drones[it] = 150;
+        rssi_angle_array_other_drones[it] = 500.0f;
+    }
+
+    // get RSSI, id and angle of closests crazyflie.
+    id_inter_closest = (uint8_t)find_minimum(rssi_array_other_drones, 9);
+    rssi_inter_closest = rssi_array_other_drones[id_inter_closest];
+    rssi_angle_inter_closest = rssi_angle_array_other_drones[id_inter_closest];
+
+
+    // filter rssi
+    static int pos_avg = 0;
+    static long sum = 0;
+    static int arrNumbers[76] = {35};
+    static int len = sizeof(arrNumbers) / sizeof(int);
+    rssi_beacon_filtered = (uint8_t)movingAvg(arrNumbers, &sum, pos_avg, len, (int)rssi_beacon);
+
+
+    /*static int arrNumbers_inter[10] = {35};
+    static int len_inter = 10;//sizeof(arrNumbers_inter) / sizeof(int);
+    static int pos_avg_inter = 0;
+    static long sum_inter = 0;
+    rssi_inter_filtered = (uint8_t)movingAvg(arrNumbers_inter, &sum_inter, pos_avg_inter, len_inter, (int)rssi_inter_closest);*/
+    rssi_inter_filtered =  (uint8_t)update_median_filter_f(&medFilt_2, (float)rssi_inter_closest);
 
     //checking init of multiranger and flowdeck
     varid = paramGetVarId("deck", "bcMultiranger");
@@ -212,9 +242,9 @@ void appMain(void *param)
     float heading_deg = logGetFloat(varid);
     heading_rad = heading_deg * (float)M_PI / 180.0f;
 
-    // Get RSSI of beacon
+    /* Get RSSI of beacon
     varid = logGetVarId("radio", "rssi");
-    rssi_beacon = logGetFloat(varid);
+    rssi_beacon = logGetFloat(varid);*/
 
 
     // Select which laser range sensor readings to use
@@ -289,32 +319,19 @@ void appMain(void *param)
 
 #if METHOD == 1 //WALL_FOLLOWING
         // wall following state machine
-        state = wall_follower(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, front_range, left_range, heading_rad, -1);
+        state = wall_follower(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, front_range, right_range, heading_rad, 1);
 #endif
 #if METHOD ==2 //WALL_FOLLOWER_AND_AVOID
+        if (id_inter_closest > my_id) {
+            rssi_inter_filtered = 140;
+        }
+
         state = wall_follower_and_avoid_controller(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, front_range, left_range, right_range,
-                heading_rad, rssi_inter);
+                heading_rad, rssi_inter_filtered);
 #endif
 #if METHOD==3 // SwWARM GRADIENT BUG ALGORITHM
 
-        // get RSSI, id and angle of closests crazyflie.
-        uint8_t id_inter_closest = (uint8_t)find_minimum(rssi_array_other_drones, 9);
-        rssi_inter_closest = rssi_array_other_drones[id_inter_closest];
-        rssi_angle_inter_closest = rssi_angle_array_other_drones[id_inter_closest];
 
-        // filter rssi
-        static int pos_avg = 0;
-        static long sum = 0;
-        static int arrNumbers[76] = {35};
-        static int len = sizeof(arrNumbers) / sizeof(int);
-        rssi_beacon_filtered = (uint8_t)movingAvg(arrNumbers, &sum, pos_avg, len, (int)rssi_beacon);
-
-
-        static int arrNumbers_inter[10] = {35};
-        static int len_inter = sizeof(arrNumbers_inter) / sizeof(int);
-        static int pos_avg_inter = 0;
-        static long sum_inter = 0;
-        rssi_inter_filtered = (uint8_t)movingAvg(arrNumbers_inter, &sum_inter, pos_avg_inter, len_inter, (int)rssi_inter_closest);
 
         bool priority = false;
         if (id_inter_closest > my_id) {
@@ -329,11 +346,9 @@ void appMain(void *param)
                                              left_range, right_range, back_range, heading_rad,
                                              (float)pos.x, (float)pos.y, rssi_beacon_filtered, rssi_inter_filtered, rssi_angle_inter_closest, priority, outbound);
 
+        memcpy(&p_reply->data[1],&rssi_angle sizeof(float));
 
-        if (usecTimestamp() >= radioSendBroadcastTime + 1000*500) {
-            radiolinkSendP2PPacketBroadcast(&p_reply);
-            radioSendBroadcastTime = usecTimestamp();
-        }
+
 
 #endif
 
@@ -353,7 +368,7 @@ void appMain(void *param)
          *  but the crazyflie  has not taken off
          *   then take off
          */
-        take_off(&setpoint_BG, 0.4f);
+        take_off(&setpoint_BG, nominal_height);
         if (height > nominal_height) {
           taken_off = true;
 
@@ -361,7 +376,11 @@ void appMain(void *param)
           wall_follower_init(0.4, 0.5);
 #endif
 #if METHOD==2
+          if (my_id==1)
           init_wall_follower_and_avoid_controller(0.4, 0.5, -1);
+          else
+          init_wall_follower_and_avoid_controller(0.4, 0.5, 1);
+
 #endif
 #if METHOD==3
           if (my_id == 4 || my_id == 8) {
@@ -407,6 +426,11 @@ void appMain(void *param)
         on_the_ground = true;
       }
     }
+
+    if (usecTimestamp() >= radioSendBroadcastTime + 1000*500) {
+        radiolinkSendP2PPacketBroadcast(&p_reply);
+        radioSendBroadcastTime = usecTimestamp();
+    }
     commanderSetSetpoint(&setpoint_BG, STATE_MACHINE_COMMANDER_PRI);
 
   }
@@ -416,18 +440,24 @@ void p2pcallbackHandler(P2PPacket *p)
 {
     id_inter_ext = p->data[0];
     rssi_inter = p->rssi;
-    memcpy(&rssi_angle_inter_ext, &p->data[1], sizeof(float));
 
-    rssi_array_other_drones[id_inter_ext] = rssi_inter_filtered;
-    time_array_other_drones[id_inter_ext] = usecTimestamp();
-    rssi_angle_array_other_drones[id_inter_ext] = rssi_angle_inter_ext;
+    if (id_inter_ext == 0x63)
+    {
+        rssi_beacon =rssi_inter;
+        keep_flying =  p->data[1];
+    }else
+    {
+        memcpy(&rssi_angle_inter_ext, &p->data[1], sizeof(float));
 
-    // For every 1 second, reset the RSSI value to high if it hasn't been received for a while
-    for (uint8_t it = 0; it < 9; it++) if (usecTimestamp() >= time_array_other_drones[it] + 1000*1000) {
-        time_array_other_drones[it] = usecTimestamp() + 1000*1000+1;
-        rssi_array_other_drones[it] = 150;
-        rssi_angle_array_other_drones[it] = 500.0f;
-      }
+        rssi_array_other_drones[id_inter_ext] = rssi_inter;
+        time_array_other_drones[id_inter_ext] = usecTimestamp();
+        rssi_angle_array_other_drones[id_inter_ext] = rssi_angle_inter_ext;
+
+
+    }
+
+
+
 }
 
 PARAM_GROUP_START(statemach)
@@ -437,4 +467,5 @@ PARAM_GROUP_STOP(statemach)
 
 LOG_GROUP_START(statemach)
 LOG_ADD(LOG_UINT8, state, &state)
+LOG_ADD(LOG_UINT8, rssi_inter, &rssi_inter_closest)
 LOG_GROUP_STOP(statemach)
