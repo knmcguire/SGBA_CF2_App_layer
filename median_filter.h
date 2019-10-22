@@ -149,3 +149,25 @@ static inline float update_median_filter_f(struct MedianFilterFloat *filter, flo
   return get_median_filter_f(filter);
 }
 
+static inline uint8_t movingAvg(int *ptrArrNumbers, long *ptrSum, int pos, int len, int nextNum)
+{
+  //Subtract the oldest number from the prev sum, add the new number
+  *ptrSum = *ptrSum - ptrArrNumbers[pos] + nextNum;
+  //Assign the nextNum to the position in the array
+  ptrArrNumbers[pos] = nextNum;
+  //return the average
+  return *ptrSum / len;
+}
+//static uint8_t rssi_beacon_filtered;
+      int pos_avg = 0;
+      long sum = 0;
+      int arrNumbers[76] = {35}; // vorige 51
+      int len = sizeof(arrNumbers) / sizeof(int);
+
+      int pos_avg_2 = 0;
+      long sum_2 = 0;
+      int arrNumbers_2[10] = {35};
+      int len_2 = sizeof(arrNumbers_2) / sizeof(int);
+
+
+

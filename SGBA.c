@@ -23,7 +23,7 @@ static float ref_distance_from_wall = 0;
 static float max_speed = 0.5;
 
 //Make variable
-uint8_t rssi_threshold = 58;// normal batteries 50/52/53/53 bigger bbatteries 55/57/59
+uint8_t rssi_threshold = 58;// normal batteries 50/52/53/53 bigger batteries 55/57/59
 uint8_t rssi_collision_threshold = 50; // normal batteris 43/45/45/46 bigger batteries 48/50/52
 
 // Converts degrees to radians.
@@ -114,7 +114,6 @@ static float fillHeadingArray(uint8_t *correct_heading_array, float rssi_heading
 	//Heading array of action choices
   static float heading_array[8] = { -135.0f, -90.0f, -45.0f, 0.0f, 45.0f, 90.0f, 135.0f, 180.0f};
   float rssi_heading_deg = rad2deg(rssi_heading);
-  //printf("%f \n", rssi_heading_deg);
 
   for (int it = 0; it < 8; it++) {
 
