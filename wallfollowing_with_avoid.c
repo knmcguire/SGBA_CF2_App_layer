@@ -86,7 +86,7 @@ int wall_follower_and_avoid_controller(float *vel_x, float *vel_y, float *vel_w,
  // static float previous_heading = 0;
   //static int state_wf = 0;
   //static bool already_turned = false;
-  int rssi_collision_threshold = 40;
+  int rssi_collision_threshold = 43;
 
 
 

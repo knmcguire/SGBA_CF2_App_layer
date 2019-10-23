@@ -195,6 +195,8 @@ void appMain(void *param)
 
   uint64_t radioSendBroadcastTime=0;
 
+  uint64_t takeoffdelaytime = 0;
+
   systemWaitStart();
   vTaskDelay(M2T(3000));
   while (1) {
@@ -368,17 +370,18 @@ void appMain(void *param)
          *  but the crazyflie  has not taken off
          *   then take off
          */
-          vTaskDelay(M2T(1000*my_id));
+          if (usecTimestamp() >= takeoffdelaytime + 1000*1000*my_id) {
 
-        take_off(&setpoint_BG, nominal_height);
-        if (height > nominal_height) {
-          taken_off = true;
+              take_off(&setpoint_BG, nominal_height);
+              if (height > nominal_height) {
+                  taken_off = true;
+
 
 #if METHOD==1
           wall_follower_init(0.4, 0.5);
 #endif
 #if METHOD==2
-          if (my_id==1)
+          if (my_id%2==1)
           init_wall_follower_and_avoid_controller(0.4, 0.5, -1);
           else
           init_wall_follower_and_avoid_controller(0.4, 0.5, 1);
@@ -400,8 +403,13 @@ void appMain(void *param)
 
 #endif
 
-        }
-        on_the_ground = false;
+
+              }
+          on_the_ground = false;
+          }else{
+              shut_off_engines(&setpoint_BG);
+              taken_off = false;
+          }
 
       }
     } else {
@@ -419,12 +427,15 @@ void appMain(void *param)
         on_the_ground = false;
 
       } else {
+
+
         /*
          * If the flight is given a not OK
          *  and crazyflie has landed
          *   then keep engines off
          */
         shut_off_engines(&setpoint_BG);
+        takeoffdelaytime=usecTimestamp();
         on_the_ground = true;
       }
     }
