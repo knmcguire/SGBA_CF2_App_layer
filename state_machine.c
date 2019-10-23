@@ -368,6 +368,8 @@ void appMain(void *param)
          *  but the crazyflie  has not taken off
          *   then take off
          */
+          vTaskDelay(M2T(1000*my_id));
+
         take_off(&setpoint_BG, nominal_height);
         if (height > nominal_height) {
           taken_off = true;
