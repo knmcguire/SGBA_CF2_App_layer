@@ -1,7 +1,7 @@
 from cflib.drivers.crazyradio import Crazyradio
 import time
 
-cr = Crazyradio()
+cr = Crazyradio(devid=1)
 
 cr.set_channel(56)
 cr.set_data_rate(cr.DR_2MPS)

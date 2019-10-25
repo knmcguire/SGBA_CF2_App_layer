@@ -47,7 +47,7 @@ static bool taken_off = false;
 static float nominal_height = 0.3;
 
 //1= wall_following,
-#define METHOD 2
+#define METHOD 3
 
 
 void p2pcallbackHandler(P2PPacket *p);
@@ -183,7 +183,7 @@ void appMain(void *param)
   struct MedianFilterFloat medFilt_2;
   init_median_filter_f(&medFilt_2, 5);
   struct MedianFilterFloat medFilt_3;
-  init_median_filter_f(&medFilt_3, 5);
+  init_median_filter_f(&medFilt_3, 13);
   p2pRegisterCB(p2pcallbackHandler);
   uint64_t address = configblockGetRadioAddress();
   uint8_t my_id =(uint8_t)((address) & 0x00000000ff);
@@ -196,6 +196,8 @@ void appMain(void *param)
   uint64_t radioSendBroadcastTime=0;
 
   uint64_t takeoffdelaytime = 0;
+  bool outbound = false;
+
 
   systemWaitStart();
   vTaskDelay(M2T(3000));
@@ -217,11 +219,11 @@ void appMain(void *param)
 
 
     // filter rssi
-    static int pos_avg = 0;
+    /*static int pos_avg = 0;
     static long sum = 0;
     static int arrNumbers[76] = {35};
     static int len = sizeof(arrNumbers) / sizeof(int);
-    rssi_beacon_filtered = (uint8_t)movingAvg(arrNumbers, &sum, pos_avg, len, (int)rssi_beacon);
+    rssi_beacon_filtered = (uint8_t)movingAvg(arrNumbers, &sum, pos_avg, len, (int)rssi_beacon);*/
 
 
     /*static int arrNumbers_inter[10] = {35};
@@ -244,9 +246,18 @@ void appMain(void *param)
     float heading_deg = logGetFloat(varid);
     heading_rad = heading_deg * (float)M_PI / 180.0f;
 
-    /* Get RSSI of beacon
+    //t RSSI of beacon
     varid = logGetVarId("radio", "rssi");
-    rssi_beacon = logGetFloat(varid);*/
+    rssi_beacon = logGetFloat(varid);
+    rssi_beacon_filtered =  (uint8_t)update_median_filter_f(&medFilt_3, (float)rssi_beacon);
+
+
+    /* filter rssi
+    static int pos_avg = 0;
+    static long sum = 0;
+    static int arrNumbers[26] = {35};
+    static int len = sizeof(arrNumbers) / sizeof(int);
+    rssi_beacon_filtered = (uint8_t)movingAvg(arrNumbers, &sum, pos_avg, len, (int)rssi_beacon);*/
 
 
     // Select which laser range sensor readings to use
@@ -301,10 +312,11 @@ void appMain(void *param)
     // Don't fly if multiranger/updownlaser is not connected or the uprange is activated
     //TODO: add flowdeck init here
 
-    if (keep_flying == true && (!correctly_initialized || up_range < 0.2f )) {
-      keep_flying = 0;
-    }
-
+    uint8_t rssi_beacon_threshold = 41;
+       if (keep_flying == true && (!correctly_initialized || up_range < 0.2f || (!outbound
+                                   && rssi_beacon_filtered < rssi_beacon_threshold))) {
+         keep_flying = 0;
+       }
     state = 0;
 
 
@@ -343,12 +355,11 @@ void appMain(void *param)
 
         }
         //TODO make outbound depended on battery.
-        bool outbound = true;
         state = SGBA_controller(&vel_x_cmd, &vel_y_cmd, &vel_w_cmd, &rssi_angle, &state_wf, front_range,
                                              left_range, right_range, back_range, heading_rad,
                                              (float)pos.x, (float)pos.y, rssi_beacon_filtered, rssi_inter_filtered, rssi_angle_inter_closest, priority, outbound);
 
-        memcpy(&p_reply->data[1],&rssi_angle sizeof(float));
+        memcpy(&p_reply.data[1],&rssi_angle, sizeof(float));
 
 
 
@@ -452,14 +463,18 @@ void appMain(void *param)
 void p2pcallbackHandler(P2PPacket *p)
 {
     id_inter_ext = p->data[0];
-    rssi_inter = p->rssi;
+
 
     if (id_inter_ext == 0x63)
     {
-        rssi_beacon =rssi_inter;
+        // rssi_beacon =rssi_inter;
         keep_flying =  p->data[1];
-    }else
-    {
+    }else if(id_inter_ext == 0x64){
+        rssi_beacon =p->rssi;
+
+    }
+    else{
+        rssi_inter = p->rssi;
         memcpy(&rssi_angle_inter_ext, &p->data[1], sizeof(float));
 
         rssi_array_other_drones[id_inter_ext] = rssi_inter;
@@ -480,5 +495,6 @@ PARAM_GROUP_STOP(statemach)
 
 LOG_GROUP_START(statemach)
 LOG_ADD(LOG_UINT8, state, &state)
-LOG_ADD(LOG_UINT8, rssi_inter, &rssi_inter_closest)
+LOG_ADD(LOG_UINT8, rssi_inter, &rssi_beacon)
+LOG_ADD(LOG_UINT8, rssi_beacon, &rssi_beacon_filtered)
 LOG_GROUP_STOP(statemach)

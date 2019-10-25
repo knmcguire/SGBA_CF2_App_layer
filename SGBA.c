@@ -326,9 +326,9 @@ int SGBA_controller(float *vel_x, float *vel_y, float *vel_w, float *rssi_angle,
     float bearing_to_goal = wraptopi(wanted_angle - current_heading);
     bool goal_check_WF = false;
     if (direction == -1) {
-      goal_check_WF = (bearing_to_goal < 0 && bearing_to_goal > -2.8f);
+      goal_check_WF = (bearing_to_goal < 0 && bearing_to_goal > -1.5f);
     } else {
-      goal_check_WF = (bearing_to_goal > 0 && bearing_to_goal < 2.8f);
+      goal_check_WF = (bearing_to_goal > 0 && bearing_to_goal < 1.5f);
     }
 
     // Check if bug went into a looping while wall following,
