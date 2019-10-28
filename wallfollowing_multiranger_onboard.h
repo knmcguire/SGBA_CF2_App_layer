@@ -10,8 +10,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-void testRange(float front_range, float right_range, float left_range);
-
 int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, float side_range, float current_heading,
                   int direction_turn);
 

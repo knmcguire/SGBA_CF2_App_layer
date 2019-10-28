@@ -7,17 +7,7 @@
 
 #include "wallfollowing_multiranger_onboard.h"
 #include <math.h>
-//#include <time.h>
-//#include <sys/time.h>
-//#include "usec_time.h"
-
-/*#ifndef GB_ONBOARD
-#include <time.h>
-#include <sys/time.h>
-#include <stdio.h>
-#else*/
 #include "usec_time.h"
-//#endif
 
 // variables
 static float ref_distance_from_wall = 0;
@@ -25,34 +15,10 @@ static float max_speed = 0.5;
 static float max_rate = 0.5;
 static float direction = 1;
 static float first_run = false;
-
-/*#ifndef GB_ONBOARD
-struct timeval state_start_time;
-struct timeval now_time;
-#else*/
+static int state = 1;
 float state_start_time;
-//#endif
-
-/*#ifndef GB_ONBOARD
-
-static int diff_ms(struct timeval t1, struct timeval t2)
-{
-  return (((t1.tv_sec - t2.tv_sec) * 1000000) +
-          (t1.tv_usec - t2.tv_usec)) / 1000;
-}
-
-float get_sec(struct timeval t1)
-{
-  return (float)((((t1.tv_sec) * 1000000) +
-                  (t1.tv_usec)) / 1000) / 1000.0f;
-}
-#endif*/
 
 
-void testRange(float front_range, float right_range, float left_range)
-{
-  //printf("range %f %f %f\n",front_range, right_range, left_range);
-}
 
 void wall_follower_init(float new_ref_distance_from_wall, float max_speed_ref, int init_state)
 {
@@ -75,11 +41,7 @@ static bool logicIsCloseTo(float real_value, float checked_value, float margin)
 
 static float wraptopi(float number)
 {
-  // fmod() has difficulty with the sign...
-  /*if(number>0)
-    return (float)fmod(number + PI,(2*PI)-PI);
-  else
-    return (float)fmod(number + PI,(2*PI)+PI);*/
+
   if (number > (float)M_PI) {
     return (number - (float)(2 * M_PI));
   } else if (number < (float)(-1 * M_PI)) {
@@ -140,54 +102,6 @@ static void commandForwardAlongWall(float *vel_x, float *vel_y, float range)
   }
 }
 
-/*static void commandForwardAlongWallHeadingSine(float* vel_x, float* vel_y, float* vel_w, float range)
-{
-  static int32_t counter =0;
-  *vel_x = max_speed;
-  bool check_distance_wall = logicIsCloseTo(ref_distance_from_wall,range,0.1);
-  *vel_y = 0;
-#ifndef GB_ONBOARD
-  gettimeofday(&now_time,NULL);
-  float now = get_sec(now_time);
-  //printf("now %f\n",now);
-#else
-  float now = usecTimestamp() / 1e6;
-#endif
-
-  *vel_w = 0.1*sin(5*(float)counter/30.0f);
-  printf("check vel %f\n",*vel_w);
-  if(!check_distance_wall)
-  {
-    if(range>ref_distance_from_wall)
-      *vel_y = direction*(-1*max_speed/3);
-    else
-      *vel_y = direction*(max_speed/3);
-  }
-  counter++;
-}*/
-
-
-/*static void commandForwardAlongWallHeadingAdjust(float* vel_x, float* vel_y, float* vel_w, float range, float diff_range)
-{
-  *vel_x = max_speed;
-  bool check_distance_wall = logicIsCloseTo(ref_distance_from_wall,range,0.1);
-  *vel_y = 0;
-  if(!check_distance_wall)
-  {
-    if(diff_range>0)
-      *vel_w = direction*(max_rate/3);
-    else
-      *vel_w = direction*(-1*max_rate/3);
-  }
-}*/
-
-
-/*static void commandTurnAroundCorner(float* vel_x, float* vel_w, float radius)
-{
-  *vel_x = max_speed;
-  *vel_w = direction*(-1*(*vel_x)/radius);
-}*/
-
 static void commandTurnAroundCornerAndAdjust(float *vel_x, float *vel_y, float *vel_w, float radius, float range)
 {
   *vel_x = max_speed;
@@ -211,36 +125,16 @@ static void commandTurnAndAdjust(float *vel_y, float *vel_w, float rate, float r
 {
   *vel_w = direction * rate;
   *vel_y = 0;
-  /*bool check_distance_to_wall = logicIsCloseTo(ref_distance_from_wall, range, 0.1);
-  if(!check_distance_to_wall)
-  {
-    if(range>ref_distance_from_wall)
-    {
-      *vel_y = direction * (-1* max_speed/3);
 
-    }
-
-    else
-    {
-      *vel_y = direction * (max_speed/3);
-
-    }
-
-  }*/
 }
 
 static int transition(int new_state)
 {
-/*#ifndef GB_ONBOARD
-  gettimeofday(&state_start_time, NULL);
-#else*/
   float t =  usecTimestamp() / 1e6;
   state_start_time = t;
-//#endif
-
   return new_state;
-
 }
+
 void adjustDistanceWall(float distance_wall_new)
 {
   ref_distance_from_wall = distance_wall_new;
@@ -252,20 +146,10 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
 
 
   direction = direction_turn;
-  static int state = 1;
   static float previous_heading = 0;
   static float angle = 0;
-  // static bool around_corner_first_turn = false;
   static bool around_corner_go_back = false;
-  //static float prev_side_range = 0;
-  //static bool found_corner = 0;
-  // static float wanted_distance_from_corner= 0.3;
-
-/*#ifndef GB_ONBOARD
-  gettimeofday(&now_time, NULL);
-#else*/
   float now = usecTimestamp() / 1e6;
-//#endif
 
   if (first_run) {
     previous_heading = current_heading;
@@ -354,12 +238,7 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
   }
 
   else {
-    // printf("STATE doesn't exist! \n");
   }
-
-/*#ifndef GB_ONBOARD
-//printf("state_WF %d\n",state);
-#endif*/
 
 
   /***********************************************************
@@ -386,24 +265,16 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
   } else if (state == 4) { //TURN_TO_ALLIGN_TO_WALL
 
 
-    // hover first second to stabilize (tv_usec i microseconds)
-/*#ifndef GB_ONBOARD
-    if (diff_ms(now_time, state_start_time) < 1000)
 
-#else*/
     if (now - state_start_time < 1.0f)
-//#endif
-
+    {
       commandHover(&temp_vel_x, &temp_vel_y, &temp_vel_w);
-    else { // then turn again
+    } else { // then turn again
       commandTurn(&temp_vel_x, &temp_vel_w, max_rate);
       temp_vel_y = 0;
     }
 
   } else if (state == 5) {  //FORWARD_ALONG_WALL
-    // float diff_range = prev_side_range-side_range;
-    //commandForwardAlongWallHeadingAdjust(&temp_vel_x, &temp_vel_y,&temp_vel_w, side_range, diff_range);
-    //prev_side_range = side_range;
     commandForwardAlongWall(&temp_vel_x, &temp_vel_y, side_range);
     temp_vel_w = 0.0f;
 
@@ -434,27 +305,15 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
       previous_heading = current_heading;
       around_corner_go_back = false;
       commandTurnAroundCornerAndAdjust(&temp_vel_x, &temp_vel_y, &temp_vel_w, ref_distance_from_wall, side_range);
-      //  temp_vel_w = temp_vel_w - 0.05f;
     }
-
-
-
-
-
-
-
 
   } else if (state == 7) {     //ROTATE_IN_CORNER
     commandTurn(&temp_vel_x, &temp_vel_w, max_rate);
     temp_vel_y = 0;
 
-
-
-
   } else if (state == 8) { //FIND_CORNER
     commandAlignCorner(&temp_vel_y, &temp_vel_w, -1 * max_rate, side_range, ref_distance_from_wall);
     temp_vel_x = 0;
-
   }
 
   else {
@@ -463,18 +322,10 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
   }
 
 
-
-
   *vel_x = temp_vel_x;
   *vel_y = temp_vel_y;
   *vel_w = temp_vel_w;
 
-
-/*#ifndef GB_ONBOARD
-
-  //printf("state_wf %d\n",state);
-
-#endif*/
   return state;
 
 }

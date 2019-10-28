@@ -73,11 +73,10 @@ static float rssi_angle;
 static int state;
 static int state_wf;
 static float up_range_filtered;
-static uint8_t send_to_number = 0;
 static int varid;
-static bool manual_startup = false;
+//static bool manual_startup = false;
 static bool on_the_ground = true;
-static uint32_t time_stamp_manual_startup_command = 0;
+//static uint32_t time_stamp_manual_startup_command = 0;
 static bool correctly_initialized;
 static uint8_t rssi_array_other_drones[9] = {150, 150, 150, 150, 150, 150, 150, 150, 150};
 static uint64_t time_array_other_drones[9] = {0};
@@ -185,8 +184,8 @@ void appMain(void *param)
   static struct MedianFilterFloat medFilt_3;
   init_median_filter_f(&medFilt_3, 13);
   p2pRegisterCB(p2pcallbackHandler);
-  static uint64_t address = configblockGetRadioAddress();
-  static uint8_t my_id =(uint8_t)((address) & 0x00000000ff);
+  uint64_t address = configblockGetRadioAddress();
+  uint8_t my_id =(uint8_t)((address) & 0x00000000ff);
   static P2PPacket p_reply;
   p_reply.port=0x00;
   p_reply.data[0]=my_id;
@@ -243,7 +242,7 @@ void appMain(void *param)
     varid = logGetVarId("kalman", "stateZ");
     height = logGetFloat(varid);
     varid = logGetVarId("stabilizer", "yaw");
-    static float heading_deg = logGetFloat(varid);
+    float heading_deg = logGetFloat(varid);
     heading_rad = heading_deg * (float)M_PI / 180.0f;
 
     //t RSSI of beacon

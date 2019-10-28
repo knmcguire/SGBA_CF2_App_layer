@@ -6,7 +6,6 @@
  */
 #include "SGBA.h"
 #include "wallfollowing_multiranger_onboard.h"
-//#include "median_filter.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -31,9 +30,6 @@ uint8_t rssi_collision_threshold = 50; // normal batteris 43/45/45/46 bigger bat
 
 // Converts radians to degrees.
 #define rad2deg(angleRadians) (angleRadians * 180.0f / (float)M_PI)
-
-//struct MedianFilterInt medFiltdiffRssi;
-
 
 static int transition(int new_state)
 {
@@ -75,23 +71,6 @@ static void commandTurn(float *vel_w, float max_rate)
 {
   *vel_w = max_rate;
 }
-
-/*
-// heading stuff
-static float meanAngle (double *angles, int size)
-{
-  double y_part = 0, x_part = 0;
-  int i;
-
-  for (i = 0; i < size; i++)
-    {
-      x_part += cos (angles[i] * M_PI / 180);
-      y_part += sin (angles[i] * M_PI / 180);
-    }
-
-  return atan2 (y_part / size, x_part / size) * 180 / M_PI;
-}
-*/
 
 uint8_t maxValue(uint8_t myArray[], int size)
 {
@@ -185,7 +164,6 @@ void init_SGBA_controller(float new_ref_distance_from_wall, float max_speed_ref,
   ref_distance_from_wall = new_ref_distance_from_wall;
   max_speed = max_speed_ref;
   wanted_angle = begin_wanted_heading;
-  //init_median_filter_i(&medFiltdiffRssi,101);
   first_run = true;
 }
 
@@ -289,7 +267,7 @@ int SGBA_controller(float *vel_x, float *vel_y, float *vel_w, float *rssi_angle,
     bool goal_check = logicIsCloseTo(wraptopi(current_heading - wanted_angle), 0, 0.1f);
     if (front_range < ref_distance_from_wall + 0.2f) {
       cannot_go_to_goal =  true;
-      wall_follower_init(0.4, 0.5);
+      wall_follower_init(0.4, 0.5, 3);
 
       state = transition(3); //wall_following
 
@@ -344,16 +322,10 @@ int SGBA_controller(float *vel_x, float *vel_y, float *vel_w, float *rssi_angle,
     if (fabs(wraptopi(wanted_angle_hit + 3.14f - loop_angle)) < 1.0) {
       overwrite_and_reverse_direction = true;
     } else {
-     // TODO: check following line causes deadlocks!!!!
-      //overwrite_and_reverse_direction = false; // this didn't really work...
     }
-    //}else{
-    //  overwrite_and_reverse_direction = false;
-    //}
 
     // if during wallfollowing, agent goes around wall, and heading is close to rssi _angle
     //      got to rotate to goal
-    // TODO check if the cannot go to goal still does anything useful...
     if ((state_wf == 6 || state_wf == 8) && goal_check_WF && front_range > ref_distance_from_wall + 0.4f
         && !cannot_go_to_goal) {
       wanted_angle_dir = wraptopi(current_heading - wanted_angle); // to determine the direction when turning to goal
@@ -389,11 +361,6 @@ int SGBA_controller(float *vel_x, float *vel_y, float *vel_w, float *rssi_angle,
 
           // Estimate the angle to the beacon
           wanted_angle = fillHeadingArray(correct_heading_array, heading_rssi, diff_rssi, 5);
-
-
-          // for simulation
-          //printf("wanted_angle %f, heading_rssi %f, diff_rssi, %d \n",wanted_angle,heading_rssi,diff_rssi);
-          //for(int it=0;it<8;it++)printf("%d, ",correct_heading_array[it]);printf("\n");
         }
       }
 
