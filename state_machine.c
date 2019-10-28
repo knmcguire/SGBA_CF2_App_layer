@@ -46,7 +46,7 @@ float height;
 static bool taken_off = false;
 static float nominal_height = 0.3;
 
-//1= wall_following,
+//1= wall_following, //2=wall following with avoid, //3=SGBA
 #define METHOD 3
 
 
@@ -57,32 +57,32 @@ static uint8_t rssi_inter_closest;
 
 float rssi_angle_inter_ext;
 float rssi_angle_inter_closest;
-uint8_t rssi_beacon;
-uint8_t rssi_beacon_filtered;
+static uint8_t rssi_beacon;
+static uint8_t rssi_beacon_filtered;
 
-uint8_t id_inter_ext;
-setpoint_t setpoint_BG;
-float vel_x_cmd, vel_y_cmd, vel_w_cmd;
-float heading_rad;
-float right_range;
-float front_range;
-float left_range;
-float up_range;
-float back_range;
-float rssi_angle;
-int state;
-int state_wf;
-float up_range_filtered;
-uint8_t send_to_number = 0;
-int varid;
-bool manual_startup = false;
-bool on_the_ground = true;
-uint32_t time_stamp_manual_startup_command = 0;
-bool correctly_initialized;
+static uint8_t id_inter_ext;
+static setpoint_t setpoint_BG;
+static float vel_x_cmd, vel_y_cmd, vel_w_cmd;
+static float heading_rad;
+static float right_range;
+static float front_range;
+static float left_range;
+static float up_range;
+static float back_range;
+static float rssi_angle;
+static int state;
+static int state_wf;
+static float up_range_filtered;
+static uint8_t send_to_number = 0;
+static int varid;
+static bool manual_startup = false;
+static bool on_the_ground = true;
+static uint32_t time_stamp_manual_startup_command = 0;
+static bool correctly_initialized;
 static uint8_t rssi_array_other_drones[9] = {150, 150, 150, 150, 150, 150, 150, 150, 150};
 static uint64_t time_array_other_drones[9] = {0};
 static float rssi_angle_array_other_drones[9] = {500.0f};
-uint8_t id_inter_closest=100;
+static uint8_t id_inter_closest=100;
 
 #define MANUAL_STARTUP_TIMEOUT  M2T(3000)
 
@@ -178,25 +178,25 @@ static int32_t find_minimum(uint8_t a[], int32_t n)
 }*/
 void appMain(void *param)
 {
-  struct MedianFilterFloat medFilt;
+  static struct MedianFilterFloat medFilt;
   init_median_filter_f(&medFilt, 5);
-  struct MedianFilterFloat medFilt_2;
+  static struct MedianFilterFloat medFilt_2;
   init_median_filter_f(&medFilt_2, 5);
-  struct MedianFilterFloat medFilt_3;
+  static struct MedianFilterFloat medFilt_3;
   init_median_filter_f(&medFilt_3, 13);
   p2pRegisterCB(p2pcallbackHandler);
-  uint64_t address = configblockGetRadioAddress();
-  uint8_t my_id =(uint8_t)((address) & 0x00000000ff);
-  P2PPacket p_reply;
+  static uint64_t address = configblockGetRadioAddress();
+  static uint8_t my_id =(uint8_t)((address) & 0x00000000ff);
+  static P2PPacket p_reply;
   p_reply.port=0x00;
   p_reply.data[0]=my_id;
   memcpy(&p_reply.data[1], &rssi_angle, sizeof(float));
   p_reply.size=5;
 
-  uint64_t radioSendBroadcastTime=0;
+  static uint64_t radioSendBroadcastTime=0;
 
-  uint64_t takeoffdelaytime = 0;
-  bool outbound = false;
+  static uint64_t takeoffdelaytime = 0;
+  static bool outbound = false;
 
 
   systemWaitStart();
@@ -243,7 +243,7 @@ void appMain(void *param)
     varid = logGetVarId("kalman", "stateZ");
     height = logGetFloat(varid);
     varid = logGetVarId("stabilizer", "yaw");
-    float heading_deg = logGetFloat(varid);
+    static float heading_deg = logGetFloat(varid);
     heading_rad = heading_deg * (float)M_PI / 180.0f;
 
     //t RSSI of beacon
@@ -389,7 +389,7 @@ void appMain(void *param)
 
 
 #if METHOD==1
-          wall_follower_init(0.4, 0.5);
+          wall_follower_init(0.4, 0.5, 1);
 #endif
 #if METHOD==2
           if (my_id%2==1)

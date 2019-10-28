@@ -86,7 +86,7 @@ int wall_follower_and_avoid_controller(float *vel_x, float *vel_y, float *vel_w,
  // static float previous_heading = 0;
   //static int state_wf = 0;
   //static bool already_turned = false;
-  int rssi_collision_threshold = 43;
+  static int rssi_collision_threshold = 43;
 
 
 
@@ -98,7 +98,7 @@ int wall_follower_and_avoid_controller(float *vel_x, float *vel_y, float *vel_w,
    // previous_heading = current_heading;
     state = 1;
 
-    float t =  usecTimestamp() / 1e6;
+    static float t =  usecTimestamp() / 1e6;
     state_start_time = t;
 
     first_run = false;
@@ -120,7 +120,7 @@ int wall_follower_and_avoid_controller(float *vel_x, float *vel_y, float *vel_w,
   if (state == 1) {     //FORWARD
     // if front range is close, start wallfollowing
     if (front_range < ref_distance_from_wall + 0.2f) {
-      wall_follower_init(ref_distance_from_wall, 0.5);
+      wall_follower_init(ref_distance_from_wall, 0.5, 3);
       state = transition(2); //wall_following
     }
   } else if (state == 2) {      //WALL_FOLLOWING

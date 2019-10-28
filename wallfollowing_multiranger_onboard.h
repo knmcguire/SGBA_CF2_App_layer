@@ -17,5 +17,5 @@ int wall_follower(float *vel_x, float *vel_y, float *vel_w, float front_range, f
 
 void adjustDistanceWall(float distance_wall_new);
 
-void wall_follower_init(float new_ref_distance_from_wall, float max_speed_ref);
+void wall_follower_init(float new_ref_distance_from_wall, float max_speed_ref, int init_state);
 #endif /* SRC_WALLFOLLOWING_MULTIRANGER_ONBOARD_H_ */

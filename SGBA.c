@@ -277,7 +277,7 @@ int SGBA_controller(float *vel_x, float *vel_y, float *vel_w, float *rssi_angle,
       pos_y_hit = current_pos_y;
       wanted_angle_hit = wanted_angle;
 
-      wall_follower_init(0.4, 0.5);
+      wall_follower_init(0.4, 0.5, 3);
 
       for (int it = 0; it < 8; it++) { correct_heading_array[it] = 0; }
 
